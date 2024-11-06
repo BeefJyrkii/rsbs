@@ -1,0 +1,44 @@
+import requests
+import os
+
+# Set your BlueSky API credentials here
+BLUESKY_API_URL = "https://bsky.social/xrpc/com.atproto.repo.createRecord"
+BLUESKY_HANDLE = "@dailydallashockey.bsky.social"
+BLUESKY_PASSWORD = os.getenv("Morrow0303!")  # Or set directly for testing
+
+def post_to_bluesky(content):
+    # Authenticate with BlueSky
+    auth_response = requests.post(
+        "https://bsky.social/xrpc/com.atproto.server.createSession",
+        json={"identifier": BLUESKY_HANDLE, "password": BLUESKY_PASSWORD}
+    )
+    auth_response.raise_for_status()
+    access_token = auth_response.json().get("accessJwt")
+
+    # Prepare post data
+    headers = {"Authorization": f"Bearer {access_token}"}
+    post_data = {
+        "repo": BLUESKY_HANDLE,
+        "collection": "app.bsky.feed.post",
+        "record": {
+            "text": content,
+            "createdAt": requests.utils.formatdate(usegmt=True)
+        }
+    }
+
+    # Post to BlueSky
+    post_response = requests.post(BLUESKY_API_URL, headers=headers, json=post_data)
+    post_response.raise_for_status()
+    return post_response.json()
+
+# Function to handle webhook data from IFTTT
+def handle_webhook(request):
+    data = request.get_json()  # Adjust based on your framework
+    content = data.get("content", "")
+
+    if content:
+        post_to_bluesky(content)
+
+        return "Success", 200
+    else:
+        return "No content provided", 400
